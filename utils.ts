@@ -189,8 +189,19 @@ export async function isWsl ({promptForPermissions}: {
 }
 
 export async function openInVsCode (path: string): Promise<void> {
-  console.log(`Opening "${path}" in VS Code`);
-  const p = Deno.run({cmd: ['code', path]});
+  // Check for code install—fallback via multiple args tested with sh
+  // NOTE: Resolution order is down to preference
+  const resolve = Deno.run({cmd: [`command`, `-v`, `code-insiders`, `code`], stdout: "piped"})
+  {
+    const {success} = await resolve.status();
+    if(!success) { return }
+  }
+  // Get first path in results
+  const codePath = new TextDecoder().decode(await resolve.output()).split(/\r?\n/).find(_ => !!_)
+  if(!codePath) { return }
+
+  console.log(`Opening "${path}" in VS Code (${codePath})`);
+  const p = Deno.run({cmd: [codePath, path]});
   const {success} = await p.status();
   if (!success) {
     throw new Error(`There was a problem opening "${path}" in VS Code. See console output for more details.`);
