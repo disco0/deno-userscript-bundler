@@ -50,7 +50,7 @@ export async function bundleModule (
       console.warn(message);
     }
     if (result.diagnostics.length) {
-        console.warn(`Diagnostics dump (soz):\n%o`, result.diagnostic)
+      console.warn(Deno.formatDiagnostics(result.diagnostics));
     }
   }
   */
