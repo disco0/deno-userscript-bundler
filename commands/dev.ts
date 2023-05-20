@@ -121,9 +121,16 @@ export async function devCmd (args: string[]): Promise<void> {
   const handleChange = async (): Promise<void> => {
     console.log(`${getLocalPreciseTime()} Bundling…`);
     const t0 = performance.now();
-    await bundleUserscript(entrypointPath);
-    const durationMs = performance.now() - t0;
-    console.log(`${getLocalPreciseTime()} Done (${durationMs}ms)`);
+    try
+    {
+        await bundleUserscript(entrypointPath);
+        const durationMs = performance.now() - t0;
+        console.log(`${getLocalPreciseTime()} Done (${durationMs}ms)`);
+    }
+    catch(err)
+    {
+        console.warn(`${getLocalPreciseTime()} Update failed: %o`, err)
+    }
   };
 
   watchFileForChanges(

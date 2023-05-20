@@ -1,7 +1,7 @@
-import {bundler, flags} from '../deps.ts';
+import {bundler, flags, emit} from '../deps.ts';
 import {requestPermission} from '../utils.ts';
 
-function getTsConfigJson (options: Pick<Deno.EmitOptions, 'compilerOptions'>): string {
+function getTsConfigJson (options: Pick<emit.TranspileOptions, 'compilerOptions'>): string {
   const space = 2;
   const json = JSON.stringify(options, undefined, space);
   return json;

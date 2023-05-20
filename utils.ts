@@ -1,4 +1,4 @@
-import {path, readLines} from './deps.ts';
+import {path, readLines, jsonc} from './deps.ts';
 
 export function exitWithMessage (code: number, message: string): never {
   console[code === 1 ? 'error' : 'log'](message);
@@ -258,4 +258,28 @@ export async function statsIfExists (path: string): Promise<MaybeStats> {
     if (ex instanceof Deno.errors.NotFound) return {exists: false};
     throw ex;
   }
+}
+
+const jsoncParseDefaultOptions: jsonc.ParseOptions =
+{
+  allowEmptyContent: true,
+  allowTrailingComma: true,
+  disallowComments: false
+}
+
+type JsoncParseResult<T extends unknown> = {
+  data: T,
+  errors: jsonc.ParseError[]
+}
+
+export async function parseJsonc<T>(text: string, options?: jsonc.ParseOptions): Proimse<JsoncParseResult<T>>
+{
+  const errors = [] as jsonc.ParseError[]
+  const data = jsonc.parse(text, errors, {...jsoncParseDefaultOptions, ...options ? options : {}})
+  return { data, errors }
+}
+
+export function formatJsoncParseError(err: jsonc.ParseError): string
+{
+  return `[${err.offset}:${err.offset + err.length}]: ${jsonc.printParseErrorCode(err.error)}`
 }
