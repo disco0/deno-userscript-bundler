@@ -9,3 +9,4 @@ export * as path from 'https://deno.land/std@0.98.0/path/mod.ts';
 
 export * as emit from "https://deno.land/x/emit@0.22.0/mod.ts";
 export * as jsonc from "https://deno.land/x/jsonc@1/main.ts";
+export { default as os } from "https://deno.land/x/dos@v0.11.0/mod.ts";
