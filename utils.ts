@@ -272,7 +272,7 @@ type JsoncParseResult<T extends unknown> = {
   errors: jsonc.ParseError[]
 }
 
-export async function parseJsonc<T>(text: string, options?: jsonc.ParseOptions): Proimse<JsoncParseResult<T>>
+export async function parseJsonc<T>(text: string, options?: jsonc.ParseOptions): Promise<JsoncParseResult<T>>
 {
   const errors = [] as jsonc.ParseError[]
   const data = jsonc.parse(text, errors, {...jsoncParseDefaultOptions, ...options ? options : {}})
