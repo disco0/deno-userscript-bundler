@@ -45,6 +45,7 @@ async function watchFileForChanges (
     callback(ev as typeof ev & {kind: 'modify'});
   }
 }
+
 // @TODO: Determine relevant changes based off of deno config (if found)?
 async function watchDirectoryForChanges (
   dirPath: string,
