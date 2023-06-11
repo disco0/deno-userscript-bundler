@@ -17,6 +17,10 @@ type WatchOptions = {
   signal?: AbortSignal;
 };
 
+type DirWatchOptions = WatchOptions & {
+  extensions?: string[]
+}
+
 async function watchFileForChanges (
   filePath: string,
   // eslint-disable-next-line no-unused-vars
@@ -41,10 +45,41 @@ async function watchFileForChanges (
     callback(ev as typeof ev & {kind: 'modify'});
   }
 }
+// @TODO: Determine relevant changes based off of deno config (if found)?
+async function watchDirectoryForChanges (
+  dirPath: string,
+  // eslint-disable-next-line no-unused-vars
+  callback: (ev: Deno.FsEvent & {kind: 'modify'}) => unknown,
+  options: DirWatchOptions = { extensions: ['ts'] },
+): Promise<void> {
+  const defaultDelay = 800;
+  const fileExts = options.extensions ?? []
+  const watcher = Deno.watchFs(dirPath, {recursive: true });
+  options.signal?.addEventListener('abort', watcher.close);
+
+  let t0 = performance.now();
+  const validEvent = fileExts.length > 0
+    ? (ev: Deno.FsEvent) => ev.paths.some((evPath) => fileExts.includes(path.extname(evPath).replace(/^\.+/, '')))
+    : (ev: Deno.FsEvent) => true
+
+  for await (const ev of watcher) {
+    if (ev.kind !== 'modify') continue;
+    if (!validEvent(ev)) continue
+
+    const t1 = performance.now();
+    const duration = t1 - t0;
+
+    if (duration < (options.delay ?? defaultDelay)) continue;
+
+    t0 = t1;
+    await callback(ev as typeof ev & {kind: 'modify'});
+  }
+}
 
 export async function devCmd (args: string[]): Promise<void> {
   const [entrypointPath] = args;
   if (!entrypointPath) exitWithMessage(1, 'No entrypoint argument provided');
+  const entrypointDir = path.dirname(entrypointPath)
 
   let info: BundleInfo;
   try {
@@ -133,10 +168,20 @@ export async function devCmd (args: string[]): Promise<void> {
     }
   };
 
-  watchFileForChanges(
-    entrypointPath,
-    handleChange,
-    {signal: ac.signal},
+  // watchFileForChanges(
+  //   entrypointPath,
+  //   handleChange,
+  //   {signal: ac.signal},
+  // );
+  watchDirectoryForChanges(
+    entrypointDir,
+    async (ev) =>
+    {
+      console.log('Changed:')
+      ev.paths.forEach(evPath => console.log(' -> %s', path.relative(entrypointDir, evPath)))
+      await handleChange()
+    },
+    { signal: ac.signal, extensions: ["ts"] },
   );
 
   console.log('Watching for file changes…\nUse ctrl+c to stop.\n');
