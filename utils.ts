@@ -1,4 +1,4 @@
-import {path, readLines, jsonc} from './deps.ts';
+import {path, readLines, jsonc, os} from './deps.ts';
 
 export function exitWithMessage (code: number, message: string): never {
   console[code === 1 ? 'error' : 'log'](message);
@@ -189,9 +189,20 @@ export async function isWsl ({promptForPermissions}: {
 }
 
 export async function openInVsCode (path: string): Promise<void> {
-  // Check for code install—fallback via multiple args tested with sh
+  const platform = os.platform()
+
+  // @TODO: Started handling windows, but getting errors related to quotation (`Error: %1 is not a valid Win32 application.`)
+  //        Checking if windows, and skipping for now.
+  if(platform === 'windows') { return }
+
+  // (Keeping repeat os.platform call to avoid type narrowing error)
+  const commandBase = os.platform() === 'windows'
+    ? [ 'where.exe' ]
+    : [ `command`, `-v` ];
+
+  // Check for code install—fallback via multiple args tested with sh.
   // NOTE: Resolution order is down to preference
-  const resolve = Deno.run({cmd: [`command`, `-v`, `code-insiders`, `code`], stdout: "piped"})
+  const resolve = Deno.run({cmd: [...commandBase, `code-insiders`, `code`], stdout: "piped"})
   {
     const {success} = await resolve.status();
     if(!success) { return }
