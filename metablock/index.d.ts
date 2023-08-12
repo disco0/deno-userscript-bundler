@@ -28,6 +28,8 @@ export type MetaValues = {
   version?: string;
   noframes?: true;
   grant?: string | string[];
+
+  sandbox?: `raw` | `JavaScript` | `DOM`
 };
 
 export type Options = {

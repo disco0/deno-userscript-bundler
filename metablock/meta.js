@@ -391,6 +391,27 @@ export const TM_METAKEY_FUNCS = {
     _validator_tmpl(vtor, `${keyname}'s metavalue should be 'chrome'`);
     return null;
   },
+
+  sandbox: (/** @type {string} */val, vtor) =>
+  {
+    const keyName = `sandbox`
+
+    if(!isString(val))
+    {
+        _validator_tmpl('error', `${keyName} metavalue is not string: ${val} (${keyValues.map(_ => `\`${_}\``).join(', ')})`)
+        return null
+    }
+
+    const keyValues = [ `raw`, `JavaScript`, `DOM` ]
+    const valUpper = val.toLocaleUpperCase()
+    const valIndex = keyValues.findIndex((validValue) => validValue.toLocaleUpperCase() === valUpper)
+    if(valIndex < 0)
+    {
+        _validator_tmpl('error', `Invalid ${keyName} metavalue: \`${val}\` (${keyValues.map(_ => `\`${_}\``).join(', ')})`)
+        return null
+    }
+    return [[keyName, keyValues.at(valIndex)]]
+  }
 };
 export const TM_METAKEY_NAMES = Object.keys(TM_METAKEY_FUNCS);
 
