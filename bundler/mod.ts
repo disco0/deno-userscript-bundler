@@ -32,6 +32,11 @@ export type BundleOptions = {
    * to `./deno.jsonc` (relative to `entrypointPath`).
    */
   denoConfigPath?: string;
+
+  /**
+   * Alternate output directory
+   */
+  outputDirPath?: string;
 };
 
 export type BundleResult = {
@@ -52,15 +57,32 @@ export async function bundleModule (
   const cfgStat = await statsIfExists(denoCfgPath)
   if(cfgStat.exists && cfgStat.isFile)
   {
+    const cfgDir = path.dirname(denoCfgPath)
     try
     {
       const {data, errors} = await parseJsonc(Deno.readTextFileSync(denoCfgPath))
       if(errors.length === 0)
       {
-        if(typeof data === 'object' && 'imports' in data)
+        if(typeof data === 'object' && !!data && 'imports' in data)
         {
-          Object.assign(bundleConf, { importMap: { imports: data.imports } })
-          console.log('Loaded import map from %s', denoCfgPath)
+          const imports =
+          /*
+          Object.fromEntries(
+            Object.entries({...
+          */
+                  data.imports as Record<string, string>
+          /*
+            })
+              .map(([alias, value]) => [
+                  alias,
+                  !path.isAbsolute(value)
+                    ? path.resolve(cfgDir, value)
+                    : value
+              ])
+          )
+          */
+          Object.assign(bundleConf, { importMap: { imports }, baseUrl: path.toFileUrl(path.resolve(cfgDir)) })
+          // console.log('Loaded import map from %s', denoCfgPath)
         }
         // else
         // {
@@ -81,6 +103,10 @@ export async function bundleModule (
       console.warn('Error thrown parsing deno config %s: %s',denoCfgPath, err)
     }
   }
+
+  // console.log('[bundleModule] bundleConf:')
+  // console.dir(bundleConf)
+
   const result = await emit.bundle(entrypointPath, bundleConf);
 
   /**

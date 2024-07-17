@@ -1,4 +1,5 @@
 import {path, readLines, jsonc, os} from './deps.ts';
+import type {Reader} from './deps.ts';
 
 export function exitWithMessage (code: number, message: string): never {
   console[code === 1 ? 'error' : 'log'](message);
@@ -43,12 +44,22 @@ export function getLocalPreciseTime (): string {
 
 /** Read lines, invoking a callback with each line. Call `close()` on reader. */
 async function handleLines (
-  reader: Deno.Reader & {close?: () => void},
+  reader: Reader & {close?: () => void},
   // eslint-disable-next-line no-unused-vars
   callback: (line: string) => unknown,
 ): Promise<void> {
   for await (const line of readLines(reader)) callback(line);
   reader.close?.();
+}
+
+/** Read lines, invoking a callback with each line. Call `close()` on reader. */
+async function handleLinesArray (
+  lines: string[],
+  // eslint-disable-next-line no-unused-vars
+  callback: (line: string) => unknown,
+): Promise<void> {
+  for await (const line of lines) callback(line);
+  // lines.close?.();
 }
 
 export async function getProcessOutput (
@@ -85,6 +96,44 @@ export async function getProcessOutput (
 
   return {
     status,
+    stderr: stdErrLines.join('\n'),
+    stdout: stdOutLines.join('\n'),
+  };
+}
+
+export async function getCommandOutput (
+  cmd: string[],
+  options: {
+    /* eslint-disable no-unused-vars */
+    onStdErrLine?: (line: string) => unknown;
+    onStdOutLine?: (line: string) => unknown;
+    /* eslint-enable no-unused-vars */
+  } = {},
+){
+  // const process = Deno.run({cmd, stderr: 'piped', stdout: 'piped'});
+  const command = new Deno.Command(
+      cmd.at(0)!,
+      {stderr: 'piped', stdout: 'piped', args: [...cmd.slice(1)]});
+
+  const stdErrLines: string[] = [];
+  const stdOutLines: string[] = [];
+  const output = await command.output()
+  const { success, stdout, stderr } = output
+
+  const streamToLines = (stream: typeof stderr): string[] =>
+    new TextDecoder().decode(stderr).split(`\n`);
+
+  handleLinesArray(streamToLines(stderr), line => {
+    stdErrLines.push(line);
+    options.onStdErrLine?.(line);
+  })
+  handleLinesArray(streamToLines(stdout), line => {
+    stdOutLines.push(line);
+    options.onStdOutLine?.(line);
+  })
+
+  return {
+    success,
     stderr: stdErrLines.join('\n'),
     stdout: stdOutLines.join('\n'),
   };
@@ -253,7 +302,11 @@ export async function resolveRealPath (
   }
 
   const cmd = ['wslpath', '-w', absolutePath];
-  const {status: {success}, stderr, stdout} = await getProcessOutput(cmd);
+  // const {status: {success}, stderr, stdout} = await getProcessOutput(cmd);
+  // if (!success) throw new Error(stderr);
+  // return stdout.trim();
+
+  const {success, stderr, stdout} = await getCommandOutput(cmd);
   if (!success) throw new Error(stderr);
   return stdout.trim();
 }

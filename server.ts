@@ -1,46 +1,28 @@
 // eslint-disable-next-line max-len, no-unused-vars
 export type RequestEventHandler = (request: Request) => Response | Promise<Response>;
 
-export function serveHttp (
+export const defaults =
+{
+  hostname: '0.0.0.0',
+  port: 80
+}
+
+export function serve (
   requestEventHandler: RequestEventHandler,
   listenOptions?: Partial<Deno.ListenOptions>,
-): {
-  listener: Deno.Listener;
-  url: URL;
-} {
-  const hostname = listenOptions?.hostname ?? '0.0.0.0';
-  // eslint-disable-next-line no-magic-numbers
-  const port = listenOptions?.port ?? 80;
-  const listener = Deno.listen({hostname, port});
+){
+  const config = { ...defaults, ...listenOptions }
+  const ac = new AbortController();
 
-  (async () => {
-    try {
-      for await (const conn of listener) {
-        (async () => {
-          try {
-            const httpConn = Deno.serveHttp(conn);
-            for await (const {request, respondWith} of httpConn) {
-              try {
-                respondWith(requestEventHandler(request));
-              }
-              catch (ex) {
-                console.error(ex);
-              }
-            }
-          }
-          catch (ex) {
-            console.error(ex);
-          }
-        })();
-      }
-    }
-    catch (ex) {
-      console.error(ex);
-    }
-  })();
-
+  // https://docs.deno.com/runtime/manual/advanced/migrate_deprecations#denoservehttp
   return {
-    listener,
-    url: new URL(`http://${hostname}:${port}/`),
-  };
+    server: Deno.serve({
+      ...config,
+      handler: (request) => requestEventHandler(request),
+      // onListen: (params) => { console.log("%cDeno.serve", 'color: #888') },
+      signal: ac.signal
+    }),
+    abort: () => ac.abort(),
+    url: new URL(`http://${config.hostname}:${config.port}/`)
+  }
 }

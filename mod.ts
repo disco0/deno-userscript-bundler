@@ -22,10 +22,14 @@ export type BundleInfo = {
 
 export async function bundleUserscript (
   entrypointPath: string,
-  options?: Pick<bundler.BundleOptions, 'logDiagnostics'>,
+  options?: Pick<bundler.BundleOptions, 'logDiagnostics' | 'outputDirPath'>,
 ): Promise<BundleInfo> {
+  // console.log(`[bundleUserscript] options:`)
+  // console.dir(options)
+
   const parsedPath = path.parse(path.normalize(entrypointPath));
   const sourceDir = parsedPath.dir || '.';
+  // console.log(`[bundleUserscript] parsedPath: %s`, sourceDir)
 
   await requestPermission(
     {name: 'read', path: sourceDir},
@@ -53,7 +57,8 @@ export async function bundleUserscript (
   }
 
   if (!bundleName) bundleName = `${parsedPath.base}.bundle.user.js`;
-  const bundlePath = path.join(sourceDir, bundleName);
+  const bundlePath = path.join(options?.outputDirPath ?? sourceDir, bundleName);
+  // console.log(`[bundl`eUserscript] bundlePath: %s`, bundlePath)
 
   const defaultMetablockValues: NonNullable<Parameters<typeof getMetablockEntries>[0]>['override'] = {
     grant: 'none',
@@ -76,11 +81,15 @@ export async function bundleUserscript (
   const metablockEntries = getMetablockEntries(metablockOptions);
   const metablock = metablockEntries.toString();
 
-  const {bundle} = await bundler.bundleModule(entrypointPath, {
-    bundleType: 'classic',
+  const bundleConfig = {
+    outputDirPath: options?.outputDirPath ?? sourceDir,
+    bundleType: 'classic' as const,
     header: metablock,
     // logDiagnostics: options?.logDiagnostics ?? true,
-  });
+  }
+  // console.log(`[bundleUserscript] bundleConfig:`)
+  // console.dir(bundleConfig)
+  const {bundle} = await bundler.bundleModule(entrypointPath, bundleConfig);
 
   await requestPermission(
     {name: 'write', path: bundlePath},
