@@ -1,0 +1,11 @@
+{
+    "tasks":
+    {
+        /**
+         * TODO: Figure out where env is requested from? Added current list based on running
+         *       w/o --allow-env and checking some deps
+         * --force to allow reinstalls
+         */
+        "install": "deno install --force --global --allow-env=DENO_DIR,HOME,USERPROFILE,DENO_AUTH_TOKENS,SYSTEMROOT,WS_NO_BUFFER_UTIL,VSCODE_INSPECTOR_OPTIONS --allow-sys=\"inspector\" --allow-net --allow-read --allow-run --allow-write --name uscript-deno main.ts"
+    }
+}
