@@ -1,6 +1,6 @@
 import {emitOptions} from './options.ts';
-import { emit, path, existsSync, jsonc } from '../deps.ts'
-import { formatJsoncParseError, parseJsonc, statsIfExists } from '../utils.ts';
+import { emit, path } from '../deps.ts'
+import { parseJsonc, statsIfExists } from '../utils.ts';
 
 export {baseCompilerOptions, browserCompilerOptions} from './options.ts';
 
@@ -60,7 +60,7 @@ export async function bundleModule (
     const cfgDir = path.dirname(denoCfgPath)
     try
     {
-      const {data, errors} = await parseJsonc(Deno.readTextFileSync(denoCfgPath))
+      const {data, errors} = parseJsonc<{imports: any}>(Deno.readTextFileSync(denoCfgPath))
       if(errors.length === 0)
       {
         if(typeof data === 'object' && !!data && 'imports' in data)
@@ -94,7 +94,7 @@ export async function bundleModule (
         console.warn(`Errors parsing deno config:`)
         for(const err of errors)
         {
-          console.warn(formatJsoncParseError(err))
+          console.warn(err.message)
         }
       }
     }

@@ -1,5 +1,4 @@
-import {path, readLines, jsonc, os} from './deps.ts';
-import type {Reader} from './deps.ts';
+import {path, readLines, /*jsonc,*/ stdJsonc, os, type Reader} from './deps.ts';
 
 export function exitWithMessage (code: number, message: string): never {
   console[code === 1 ? 'error' : 'log'](message);
@@ -324,26 +323,31 @@ export async function statsIfExists (path: string): Promise<MaybeStats> {
   }
 }
 
-const jsoncParseDefaultOptions: jsonc.ParseOptions =
+export function parseJsonc<T extends stdJsonc.JsonValue = stdJsonc.JsonValue>(
+  text: string,
+  options: stdJsonc.ParseOptions = { allowTrailingComma: true }
+): { data: T; errors: [] } | { data?: undefined; errors: SyntaxError[] }
 {
-  allowEmptyContent: true,
-  allowTrailingComma: true,
-  disallowComments: false
+  try
+  {
+    return { data: stdJsonc.parse(text, options) as T, errors: [] }
+  }
+  catch(error)
+  {
+    // @ts-expect-error TODO Check error type
+    return { errors: [error] }
+  }
 }
 
-type JsoncParseResult<T extends unknown> = {
-  data: T,
-  errors: jsonc.ParseError[]
-}
+const ESC = `\u{1B}`
+const ST = `${ESC}\\`
+// const CSI = `${ESC}[`
+const OSC = `${ESC}]`
 
-export async function parseJsonc<T>(text: string, options?: jsonc.ParseOptions): Promise<JsoncParseResult<T>>
-{
-  const errors = [] as jsonc.ParseError[]
-  const data = jsonc.parse(text, errors, {...jsoncParseDefaultOptions, ...options ? options : {}})
-  return { data, errors }
-}
-
-export function formatJsoncParseError(err: jsonc.ParseError): string
-{
-  return `[${err.offset}:${err.offset + err.length}]: ${jsonc.printParseErrorCode(err.error)}`
-}
+export const oscLink = (uri: string, text?: string) =>
+    `${OSC}8;;${
+            uri.match(/^[a-z]+:[/]+/)
+                ? uri
+                : `file:///${uri.replace(/^[\\/]+/, '')}`
+    }${ST}${text ?? uri}${OSC}8;;${ST}`
+    // `${OSC}8;;${uri}${ESC}\\${text}${OSC}8;;`
