@@ -33,7 +33,7 @@ export async function newCmd (args: string[]): Promise<void> {
       }
       throw ex;
     }
-    throw new Error(ex);
+    throw new Error(`${ex}`);
   }
 
   const entrypointPath = path.join(dir, FileName.Entrypoint);

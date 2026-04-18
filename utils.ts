@@ -61,45 +61,6 @@ async function handleLinesArray (
   // lines.close?.();
 }
 
-export async function getProcessOutput (
-  cmd: string[],
-  options: {
-    /* eslint-disable no-unused-vars */
-    onStdErrLine?: (line: string) => unknown;
-    onStdOutLine?: (line: string) => unknown;
-    /* eslint-enable no-unused-vars */
-  } = {},
-): Promise<{
-  status: Deno.ProcessStatus;
-  stderr: string;
-  stdout: string;
-}> {
-  const process = Deno.run({cmd, stderr: 'piped', stdout: 'piped'});
-
-  const stdErrLines: string[] = [];
-  const stdOutLines: string[] = [];
-
-  const [status] = await Promise.all([
-    process.status(),
-    handleLines(process.stderr, line => {
-      stdErrLines.push(line);
-      options.onStdErrLine?.(line);
-    }),
-    handleLines(process.stdout, line => {
-      stdOutLines.push(line);
-      options.onStdOutLine?.(line);
-    }),
-  ]);
-
-  process.close();
-
-  return {
-    status,
-    stderr: stdErrLines.join('\n'),
-    stdout: stdOutLines.join('\n'),
-  };
-}
-
 export async function getCommandOutput (
   cmd: string[],
   options: {
@@ -250,18 +211,19 @@ export async function openInVsCode (path: string): Promise<void> {
 
   // Check for code install—fallback via multiple args tested with sh.
   // NOTE: Resolution order is down to preference
-  const resolve = Deno.run({cmd: [...commandBase, `code-insiders`, `code`], stdout: "piped"})
+  const cmd = [...commandBase, `code-insiders`, `code`]
+  const resolve = new Deno.Command(cmd.at(0)!, {args: [...cmd.slice(1)], stdout: "piped"}).spawn()
   {
-    const {success} = await resolve.status();
+    const {success} = await resolve.status;
     if(!success) { return }
   }
   // Get first path in results
-  const codePath = new TextDecoder().decode(await resolve.output()).split(/\r?\n/).find(_ => !!_)
+  const codePath = (await resolve.stdout.text()).split(/\r?\n/).find(_ => !!_)
   if(!codePath) { return }
 
   console.log(`Opening "${path}" in VS Code (${codePath})`);
-  const p = Deno.run({cmd: [codePath, path]});
-  const {success} = await p.status();
+  const p = new Deno.Command(codePath, {args: [path]}).spawn()
+  const {success} = await p.status;
   if (!success) {
     throw new Error(`There was a problem opening "${path}" in VS Code. See console output for more details.`);
   }
@@ -301,9 +263,6 @@ export async function resolveRealPath (
   }
 
   const cmd = ['wslpath', '-w', absolutePath];
-  // const {status: {success}, stderr, stdout} = await getProcessOutput(cmd);
-  // if (!success) throw new Error(stderr);
-  // return stdout.trim();
 
   const {success, stderr, stdout} = await getCommandOutput(cmd);
   if (!success) throw new Error(stderr);
