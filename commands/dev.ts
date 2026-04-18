@@ -8,6 +8,7 @@ import {
   openInVsCode,
   requestPermission,
   resolveRealPath,
+  oscLink,
 } from '../utils.ts';
 import {path, Status} from '../deps.ts';
 import {RequestEventHandler, serve} from '../server.ts';
@@ -181,6 +182,13 @@ export async function devCmd (args: string[]): Promise<void> {
     else throw ex;
   }
 
+  // Pulled these out to allow for update text to use them
+  const bundleUrl = new URL(`http://${hostname}:${port}/bundle.user.js`);
+  const metablockUrl = new URL(`http://${hostname}:${port}/meta.user.js`);
+  const infoUrl = new URL(`http://${hostname}:${port}/info.html`);
+  const listedUrls = [ bundleUrl, metablockUrl, infoUrl ]
+  const rootUrl = new URL(`http://${hostname}:${port}/info.html`);
+
   const ac = new AbortController();
 
   if (await requestPermission(
@@ -204,13 +212,6 @@ export async function devCmd (args: string[]): Promise<void> {
         ).toFileUrl(realPath).href;
 
       info = adjustBundleInfo(info)
-
-
-      const bundleUrl = new URL(`http://${hostname}:${port}/bundle.user.js`);
-      const metablockUrl = new URL(`http://${hostname}:${port}/meta.user.js`);
-      const infoUrl = new URL(`http://${hostname}:${port}/info.html`);
-      const listedUrls = [ bundleUrl, metablockUrl, infoUrl ]
-      const rootUrl = new URL(`http://${hostname}:${port}/info.html`);
 
       const urlToListItem = ({href}: {href: string}) => `<ul><a href="${href}">${href}</a></ul>`
       const failedRequestResponse = () =>
@@ -290,6 +291,11 @@ export async function devCmd (args: string[]): Promise<void> {
   //   'Open file in VS Code',
   // )) await openInVsCode(entrypointPath);
 
+  const termLinks = {
+    bundle: oscLink(bundleUrl.href, 'Bundle'),
+    meta: oscLink(metablockUrl.href, 'Metablock'),
+  }
+
   const handleChange = async (): Promise<void> => {
     console.log(`${getLocalPreciseTime()} Bundling…`);
     const t0 = performance.now();
@@ -297,7 +303,7 @@ export async function devCmd (args: string[]): Promise<void> {
     {
         info = adjustBundleInfo(await bundleUserscript(entrypointPath, { outputDirPath }));
         const durationMs = performance.now() - t0;
-        console.log(`${getLocalPreciseTime()} Done (${durationMs}ms)`);
+        console.log(`${getLocalPreciseTime()} Done (${durationMs}ms) | ${termLinks.bundle} / ${termLinks.meta}`);
     }
     catch(err)
     {
