@@ -56,15 +56,15 @@ declare interface ExtDirWatchOptions extends DirWatchOptions
 }
 
 // @TODO: Determine relevant changes based off of deno config (if found)?
-async function watchDirectoryForChanges (
-  dirPath: string,
+async function watchPathsForChanges (
+  paths: string | string[],
   callback: (ev: Deno.FsEvent & {kind: 'modify'}) => unknown,
   options: ExtDirWatchOptions = { extensions: ['ts'] },
 ): Promise<void> {
   const defaultDelay = 800;
   const fileExts = options.extensions?.map(_ => _.toLowerCase()) ?? []
   const files = options.files ?? []
-  const watcher = Deno.watchFs(dirPath, {recursive: true });
+  const watcher = Deno.watchFs(paths, {recursive: true });
   options.signal?.addEventListener('abort', watcher.close);
 
   // NOTE: Hoist a bunch of stuff out of function if this whole `files` option mess turns out ok
@@ -335,7 +335,7 @@ export async function devCmd (args: string[]): Promise<void> {
   //   handleChange,
   //   {signal: ac.signal},
   // );
-  watchDirectoryForChanges(
+  watchPathsForChanges(
     entrypointDir,
     async (ev) =>
     {
