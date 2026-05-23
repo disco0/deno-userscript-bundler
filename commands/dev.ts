@@ -10,7 +10,7 @@ import {
   resolveRealPath,
   oscLink,
 } from '../utils.ts';
-import {path, Status} from '../deps.ts';
+import {path, Status, parseArgs} from '../deps.ts';
 import {RequestEventHandler, serve} from '../server.ts';
 
 type WatchOptions =
@@ -125,40 +125,54 @@ async function watchDirectoryForChanges (
   }
 }
 
-export async function devCmd (args: string[]): Promise<void> {
-  // Hoisted together for checking args
-  const hostname = 'localhost';
-  let port = 10741;
 
-  // Check for and remove port option parameter
-  // @TODO yargs?
-  (() =>
-  {
-    const portParam = ['-p', '--port']
-    const paramIdx = args.findIndex(_ => portParam.includes(_))
+interface DevCmdConfig {
+  hostname: string;
+  port: number;
+  entrypointPath: string;
+  outputDirPath?: string;
+}
 
-    if(paramIdx < 0) { return }
-    if(paramIdx + 1 >= args.length)
+const parseDevCmdArgs = (args: string[], defaults: Partial<DevCmdConfig> = {}): DevCmdConfig => {
+  // FIXME: Its either `string | number` or `string`, going with `string` for now even if
+  //        port is a number
+  const parsed = parseArgs(args,
     {
-      exitWithMessage(2, 'Missing expected port number after flag.');
-    }
+      string: [ 'port', 'hostname' ],
+      alias: { port: 'p', hostname: 'H' },
+    })
 
-    const rawValue = args.at(paramIdx + 1)!
-    const value = parseInt(rawValue);
-    if(!Number.isInteger(value))
-    {
-      exitWithMessage(3, `Invalid port value: "${rawValue}"`);
-    }
-    port = value
-    args.splice(paramIdx, 2)
-    // console.dir(args)
-  })()
+  // toString isn't _necessary_ but keeping the checker happy
+  parsed.port ??= defaults.port?.toString()
+  if(!parsed.port)
+    exitWithMessage(2, 'Missing expected port number after flag.');
+  const port = parseInt(parsed.port)
+  if(port < 1 && !Number.isInteger(port))
+    exitWithMessage(3, `Invalid port value: "${parsed.port}"`);
 
-  const [entrypointPath, outputDirPath] = args;
+  // TODO: Validate further
+  parsed.hostname ??= defaults.hostname
+  if(!parsed.hostname)
+    exitWithMessage(3, `Invalid hostname value: "${parsed.hostname}"`);
+  const hostname = parsed.hostname
+
+  // positional
+  const [entrypointPath, outputDirPath] = [parsed._.at(0)?.toString(), parsed._.at(1)?.toString()];
   if (!entrypointPath)
     exitWithMessage(1, 'No entrypoint argument provided');
 
-  const entrypointDir = path.dirname(entrypointPath)
+  return {
+    hostname,
+    port,
+    entrypointPath,
+    outputDirPath,
+  }
+}
+
+export async function devCmd (args: string[]): Promise<void> {
+  const config = parseDevCmdArgs(args, { hostname: 'localhost', port: 10741 })
+
+  const entrypointDir = path.dirname(config.entrypointPath)
 
   let fileUrl: string
   const adjustBundleInfo = (info: BundleInfo) =>
@@ -172,7 +186,7 @@ export async function devCmd (args: string[]): Promise<void> {
     return info
   }
   let info: BundleInfo;
-  try { info = await bundleUserscript(entrypointPath, { outputDirPath }); }
+  try { info = await bundleUserscript(config.entrypointPath, { outputDirPath: config.outputDirPath }); }
   catch (ex)
   {
     if (ex instanceof Deno.errors.PermissionDenied)
@@ -183,11 +197,11 @@ export async function devCmd (args: string[]): Promise<void> {
   }
 
   // Pulled these out to allow for update text to use them
-  const bundleUrl = new URL(`http://${hostname}:${port}/bundle.user.js`);
-  const metablockUrl = new URL(`http://${hostname}:${port}/meta.user.js`);
-  const infoUrl = new URL(`http://${hostname}:${port}/info.html`);
+  const bundleUrl = new URL(`http://${config.hostname}:${config.port}/bundle.user.js`);
+  const metablockUrl = new URL(`http://${config.hostname}:${config.port}/meta.user.js`);
+  const infoUrl = new URL(`http://${config.hostname}:${config.port}/info.html`);
   const listedUrls = [ bundleUrl, metablockUrl, infoUrl ]
-  const rootUrl = new URL(`http://${hostname}:${port}/info.html`);
+  const rootUrl = new URL(`http://${config.hostname}:${config.port}/info.html`);
 
   const ac = new AbortController();
 
@@ -202,7 +216,7 @@ export async function devCmd (args: string[]): Promise<void> {
     );
 
     if (await requestPermission(
-      { host: `${hostname}:${port}`, name: 'net' },
+      { host: `${config.hostname}:${config.port}`, name: 'net' },
       'Provide userscript at localhost URL',
     )) {
       fileUrl = (
@@ -277,7 +291,12 @@ export async function devCmd (args: string[]): Promise<void> {
       };
 
       // serveHttp(handleRequest, {hostname, port});
-      const { abort, server } = serve(handleRequest, { hostname, port})
+      const { abort, server } = serve(
+        handleRequest,
+        {
+          hostname: config.hostname,
+          port: config.port,
+        })
       Deno.addSignalListener('SIGINT', () => (abort(), Deno.exit()))
 
       console.log(`Development userscript metablock at:\n${metablockUrl.href}`);
@@ -301,7 +320,7 @@ export async function devCmd (args: string[]): Promise<void> {
     const t0 = performance.now();
     try
     {
-        info = adjustBundleInfo(await bundleUserscript(entrypointPath, { outputDirPath }));
+        info = adjustBundleInfo(await bundleUserscript(config.entrypointPath, { outputDirPath: config.outputDirPath }));
         const durationMs = performance.now() - t0;
         console.log(`${getLocalPreciseTime()} Done (${durationMs}ms) | ${termLinks.bundle} / ${termLinks.meta}`);
     }

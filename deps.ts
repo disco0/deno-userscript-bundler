@@ -12,4 +12,5 @@ export * as emit from "jsr:@deno/emit";
 // Should move to https://jsr.io/@std/jsonc
 export * as jsonc from "https://deno.land/x/jsonc@1/main.ts";
 export * as stdJsonc from 'jsr:@std/jsonc'
+export { parseArgs } from 'jsr:@std/cli'
 export { default as os } from "https://deno.land/x/dos@v0.11.0/mod.ts";
