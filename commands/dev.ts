@@ -84,14 +84,6 @@ async function watchPathsForChanges (
       ...!files    ? [] : [ ({base}: Path) => files.some(name => name.toLowerCase() == base.toLowerCase()) ],
       ...!fileExts ? [] : [
         ({ext}: Path) => fileExts.includes(ext.slice(1).toLowerCase())
-        // ({ext}: Path) => {
-        //   const extStr = ext.slice(1)
-        //   console.log(`[%s] <%o> => <%o>?`, ext, ext, extStr)
-        //   const ret = fileExts.includes(extStr)
-        //   console.log(`[%s] %s in %o?`, ext, extStr, fileExts)
-        //   console.log(`[%s] %s`, ext, ret ? 'YES' : 'NO')
-        //   return ret
-        // }
       ],
     ]
 
@@ -124,7 +116,6 @@ async function watchPathsForChanges (
     await callback(ev as typeof ev & {kind: 'modify'});
   }
 }
-
 
 interface DevCmdConfig {
   hostname: string;
