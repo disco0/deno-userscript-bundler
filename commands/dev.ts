@@ -122,6 +122,7 @@ interface DevCmdConfig {
   port: number;
   entrypointPath: string;
   outputDirPath?: string;
+  devScriptPostfix: boolean
 }
 
 const parseDevCmdArgs = (args: string[], defaults: Partial<DevCmdConfig> = {}): DevCmdConfig => {
@@ -130,7 +131,10 @@ const parseDevCmdArgs = (args: string[], defaults: Partial<DevCmdConfig> = {}): 
   const parsed = parseArgs(args,
     {
       string: [ 'port', 'hostname' ],
-      alias: { port: 'p', hostname: 'H' },
+      boolean: [ 'dev-postfix' ],
+      negatable: [ 'dev-postfix' ],
+      default: { "dev-postfix": true },
+      alias: { port: 'p', hostname: 'H', 'dev-postfix': 'D' },
     })
 
   // toString isn't _necessary_ but keeping the checker happy
@@ -157,8 +161,11 @@ const parseDevCmdArgs = (args: string[], defaults: Partial<DevCmdConfig> = {}): 
     port,
     entrypointPath,
     outputDirPath,
+    devScriptPostfix: parsed["dev-postfix"]
   }
 }
+
+const scriptNameDevPostfix = `-dev`
 
 export async function devCmd (args: string[]): Promise<void> {
   const config = parseDevCmdArgs(args, { hostname: 'localhost', port: 10741 })
@@ -174,6 +181,17 @@ export async function devCmd (args: string[]): Promise<void> {
     {
       info.metablockEntries.push(['require', fileUrl])
     }
+    if(config.devScriptPostfix)
+    {
+      info.metablockEntries = info.metablockEntries
+        .map(entry => {
+          if(entry[0] === 'name' && entry[1] && !entry[1].endsWith(scriptNameDevPostfix))
+            entry[1] = entry[1] + scriptNameDevPostfix
+
+          return entry
+        })
+    }
+
     return info
   }
   let info: BundleInfo;
