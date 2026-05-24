@@ -1,3 +1,4 @@
+import type { MetaValues } from './metablock/index.d.ts';
 import {bundler, path} from './deps.ts';
 import {
   exitWithMessage,
@@ -23,6 +24,7 @@ export type BundleInfo = {
 export async function bundleUserscript (
   entrypointPath: string,
   options?: Pick<bundler.BundleOptions, 'logDiagnostics' | 'outputDirPath'>,
+  overrides?: MetaValues
 ): Promise<BundleInfo> {
   // console.log(`[bundleUserscript] options:`)
   // console.dir(options)
@@ -58,7 +60,7 @@ export async function bundleUserscript (
 
   if (!bundleName) bundleName = `${parsedPath.base}.bundle.user.js`;
   const bundlePath = path.join(options?.outputDirPath ?? sourceDir, bundleName);
-  // console.log(`[bundl`eUserscript] bundlePath: %s`, bundlePath)
+  // console.log(`[bundleUserscript] bundlePath: %s`, bundlePath)
 
   const defaultMetablockValues: NonNullable<Parameters<typeof getMetablockEntries>[0]>['override'] = {
     grant: 'none',
@@ -77,6 +79,8 @@ export async function bundleUserscript (
     manager: 'tampermonkey',
     override: metablockFilePath ? undefined : defaultMetablockValues,
   };
+  if(overrides)
+    metablockOptions.override = {...metablockOptions.override, ...overrides}
 
   const metablockEntries = getMetablockEntries(metablockOptions);
   const metablock = metablockEntries.toString();
