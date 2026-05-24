@@ -1,5 +1,6 @@
 // Implement handling of Deno.signals?
 
+import { StaticLine } from "jsr:@std/cli/unstable-static-line";
 import {BundleInfo, bundleUserscript} from '../mod.ts';
 import {
   exitWithMessage,
@@ -213,6 +214,7 @@ export async function devCmd (args: string[]): Promise<void> {
   const rootUrl = new URL(`http://${config.hostname}:${config.port}/info.html`);
 
   const ac = new AbortController();
+  const bottomLine = new StaticLine("bottom")
 
   if (await requestPermission(
     {name: 'read', path: '.'},
@@ -306,7 +308,12 @@ export async function devCmd (args: string[]): Promise<void> {
           hostname: config.hostname,
           port: config.port,
         })
-      Deno.addSignalListener('SIGINT', () => (abort(), Deno.exit()))
+
+      Deno.addSignalListener('SIGINT', async () => (
+        await bottomLine.releaseLine(),
+        abort(),
+        Deno.exit()
+      ))
 
       console.log(`Development userscript metablock at:\n${metablockUrl.href}`);
       console.log(`Development userscript bundle at:\n${bundleUrl.href}`);
@@ -324,6 +331,8 @@ export async function devCmd (args: string[]): Promise<void> {
     meta: oscLink(metablockUrl.href, 'Metablock'),
   }
 
+  await bottomLine.write(`${termLinks.bundle} / ${termLinks.meta}`)
+
   const handleChange = async (): Promise<void> => {
     console.log(`${getLocalPreciseTime()} Bundling…`);
     const t0 = performance.now();
@@ -331,7 +340,7 @@ export async function devCmd (args: string[]): Promise<void> {
     {
         info = adjustBundleInfo(await bundleUserscript(config.entrypointPath, { outputDirPath: config.outputDirPath }));
         const durationMs = performance.now() - t0;
-        console.log(`${getLocalPreciseTime()} Done (${durationMs}ms) | ${termLinks.bundle} / ${termLinks.meta}`);
+        console.log(`${getLocalPreciseTime()} Done (${durationMs}ms)`);
     }
     catch(err)
     {
