@@ -123,7 +123,7 @@ interface DevCmdConfig {
   port: number;
   entrypointPath: string;
   outputDirPath?: string;
-  devScriptPostfix: boolean
+  devNameSuffix: boolean
 }
 
 const parseDevCmdArgs = (args: string[], defaults: Partial<DevCmdConfig> = {}): DevCmdConfig => {
@@ -132,10 +132,10 @@ const parseDevCmdArgs = (args: string[], defaults: Partial<DevCmdConfig> = {}): 
   const parsed = parseArgs(args,
     {
       string: [ 'port', 'hostname' ],
-      boolean: [ 'dev-postfix' ],
-      negatable: [ 'dev-postfix' ],
-      default: { "dev-postfix": true },
-      alias: { port: 'p', hostname: 'H', 'dev-postfix': 'D' },
+      boolean: [ 'dev-suffix' ],
+      negatable: [ 'dev-suffix' ],
+      default: { "dev-suffix": true },
+      alias: { port: 'p', hostname: 'H', 'dev-suffix': 'D' },
     })
 
   // toString isn't _necessary_ but keeping the checker happy
@@ -162,15 +162,16 @@ const parseDevCmdArgs = (args: string[], defaults: Partial<DevCmdConfig> = {}): 
     port,
     entrypointPath,
     outputDirPath,
-    devScriptPostfix: parsed["dev-postfix"]
+    devNameSuffix: parsed["dev-suffix"]
   }
 }
 
-const scriptNameDevPostfix = `-dev`
+const scriptNameDevSuffix = `-dev`
 
 export async function devCmd (args: string[]): Promise<void> {
   const config = parseDevCmdArgs(args, { hostname: 'localhost', port: 10741 })
 
+  const overrides: { name?: string } = { }
   const entrypointDir = path.dirname(config.entrypointPath)
 
   let fileUrl: string
@@ -182,21 +183,24 @@ export async function devCmd (args: string[]): Promise<void> {
     {
       info.metablockEntries.push(['require', fileUrl])
     }
-    if(config.devScriptPostfix)
+    if(config.devNameSuffix)
     {
-      info.metablockEntries = info.metablockEntries
-        .map(entry => {
-          if(entry[0] === 'name' && entry[1] && !entry[1].endsWith(scriptNameDevPostfix))
-            entry[1] = entry[1] + scriptNameDevPostfix
-
-          return entry
-        })
+      for(const entry of info.metablockEntries)
+      {
+        if(entry[0] !== 'name' || !entry[1]) { continue }
+        overrides.name =
+            entry[1].endsWith(scriptNameDevSuffix)
+                ? entry[1]
+                : `${entry[1]}${scriptNameDevSuffix}`
+        break
+      }
     }
+    else { delete overrides.name }
 
     return info
   }
   let info: BundleInfo;
-  try { info = await bundleUserscript(config.entrypointPath, { outputDirPath: config.outputDirPath }); }
+  try { info = await bundleUserscript(config.entrypointPath, { outputDirPath: config.outputDirPath }, overrides); }
   catch (ex)
   {
     if (ex instanceof Deno.errors.PermissionDenied)
@@ -338,7 +342,7 @@ export async function devCmd (args: string[]): Promise<void> {
     const t0 = performance.now();
     try
     {
-        info = adjustBundleInfo(await bundleUserscript(config.entrypointPath, { outputDirPath: config.outputDirPath }));
+        info = adjustBundleInfo(await bundleUserscript(config.entrypointPath, { outputDirPath: config.outputDirPath }, overrides));
         const durationMs = performance.now() - t0;
         console.log(`${getLocalPreciseTime()} Done (${durationMs}ms)`);
     }
@@ -365,6 +369,7 @@ export async function devCmd (args: string[]): Promise<void> {
   );
 
   console.log('Watching for file changes…\nUse ctrl+c to stop.\n');
+  handleChange()
 }
 
 export default devCmd;
