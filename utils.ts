@@ -113,6 +113,19 @@ export function handleCommand (
   if (defaultCase) return defaultCase(command);
 }
 
+export async function readEnvVar(
+  variable: string,
+  {promptForPermissions}: {promptForPermissions?: boolean;} = {}
+) {
+  if(promptForPermissions)
+  {
+    await requestPermission(
+      { name: 'env', variable } as Deno.EnvPermissionDescriptor,
+      `Read environment variable: ${variable}`)
+  }
+  return Deno.env.get(variable)
+}
+
 let isDockerMemo: boolean;
 
 /** Adapted from https://unpkg.com/is-docker@2.2.1/index.js */

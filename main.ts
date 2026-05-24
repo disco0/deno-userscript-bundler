@@ -2,6 +2,7 @@ import {exitWithMessage, handleCommand} from './utils.ts';
 import bundleCmd from './commands/bundle.ts';
 import devCmd from './commands/dev.ts';
 import newCmd from './commands/new.ts';
+import gistCmd from './commands/gist.ts';
 import tsconfigCmd from './commands/tsconfig.ts';
 
 async function main () {
@@ -12,6 +13,7 @@ async function main () {
     bundle: bundleCmd,
     dev: devCmd,
     new: newCmd,
+    gist: gistCmd,
     tsconfig: tsconfigCmd,
   }, cmd => exitWithMessage(1, `Command not recognized: "${cmd}"`));
 }
